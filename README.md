@@ -1,0 +1,262 @@
+# dailycalc
+
+# left
+
+- making filters of range in sheets for easy recording and visualization of data
+- the sorting sheet sorts names on the basis of capital and small aphabate , needs to be uniform
+- formula calculator needs a live preview of results
+- spreadsheet needs
+  - numbering
+  - a way to change or delete dates
+  - a non disappearing first row and column
+- In normal calculator don't print 0.0 if a calculation mistake is done, just hold on to previous result in view result section
+- a way to duplicate the entire sheet, it will be effective with filter date feature
+
+- make all the conversion formulas that a calculator gives, and some more formulas
+
+- make more useful formulas
+- internationalization
+- manual
+
+# Json structure
+1) Home
+```
+[
+    {
+        name,
+        created_on,      -- it is also used as id
+        type,      -- illustrates which card it is derived from
+        typeId,
+        items:[
+            {
+                note,
+                date,
+                created-on,       -- it is also used as its id
+                inputs:{},
+                output
+            }
+        ],
+        aggregate_function: "average",
+        graph:{x:"amount" , y:"output"}
+    }
+]
+```
+
+2) Cards
+```
+[
+    {
+        name,
+        create_on,         -- also used for id
+        is_favourite,
+        inputs:[{name:type}],
+        formulas:[
+            {name:value}       -- each is computed one after other like intepretor
+        ]
+        output
+    }
+]
+```
+
+
+3) Calculator history
+```
+[
+    {
+        type,      -- if null means normal calculator
+        date,
+        typeId,    -- type's created date and time is its id
+        inputs:[{name:value}], -- if notmal calc then no array
+        output
+    }
+]
+```
+
+4) Final
+{
+    theme:{
+        font, fontsize, colors:[]
+    },
+    home:[...],
+    cards:[...],
+    calc_history:[...]
+
+}
+
+
+### For Hive
+
+1a. Field
+```
+@HiveType(typeId: 1)
+class Field {
+  @HiveField(0) String sym;
+  @HiveField(1) String type;
+}
+
+@HiveType(typeId: 2)
+class Formula {
+  @HiveField(0) int pos;
+  @HiveField(1) String sym;
+  @HiveField(2) String formula;
+}
+
+```
+
+1b. cards
+```
+@HiveType(typeId: 3)
+class CardModel {
+  @HiveField(0) String name;
+  @HiveField(1) int createdOn; // will be used as id
+  @HiveField(2) bool isFavourite; 
+  @HiveField(3) List<Field> fields; 
+  @HiveField(4) List<Formula> formulas; 
+  @HiveField(5) String output;
+}
+```
+
+2a. HomeItem, Graph, Input
+```
+@HiveType(typeId: 4)
+class Input {
+  @HiveField(0) String name;
+  @HiveField(1) String value;
+}
+
+@HiveType(typeId: 5)
+class HomeItem {
+  @HiveField(0) String note;
+  @HiveField(1) int createdOn; // will be use as id
+  @HiveField(2) int date;
+  @HiveField(3) List<Input> inputs;
+  @HiveField(4) int output; 
+}
+
+```
+
+2b. Home
+```
+@HiveType(typeId: 6)
+class HomeModel {
+  @HiveField(0) String name;
+  @HiveField(1) int createdOn; // will be use as id
+  @HiveField(2) CardModel type;
+  @HiveField(3) int CardId; // card createOn is used as card id
+  @HiveField(4) List<HomeItem> items; // 
+  @HiveField(5) String aggregateFunction;
+  @HiveField(6) int output;
+}
+
+```
+
+3) calculator history
+```
+@HiveType(typeId: 7)
+class CalcHistory {
+  @HiveField(0) CardModel? type;
+  @HiveField(1) int date;
+  @HiveField(2) int? CardId; // card createOn is used as card id
+  @HiveField(3) List<Input> inputs;
+  @HiveField(4) int output;
+}
+
+```
+
+4) settings
+```
+@HiveType(typeId: 8)
+class ThemeSettings {
+  @HiveField(0) String font;
+  @HiveField(1) double fontSize;
+  @HiveField(2) String theme;
+}
+```
+
+4) spreadsheet
+```
+@HiveType(typeId: 9)
+class SpreadSheet {
+  @HiveField(0) String name;
+  @HiveField(1) String cardName;
+  @HiveField(2) String cardId; // uses the createdOn as id
+  @HiveField(3) String createdOn; 
+  @HiveField(4) List<string> homeCardIds;
+}
+```
+
+
+# colors keep in mind
+```
+# Primary Color
+  Main brand color
+  AppBar background
+  FloatingActionButton
+  Primary buttons
+  Active tabs / selected items
+  Progress indicators
+
+# Light Primary Color
+  Selected list item background
+  Card highlights
+  Chips
+  Hover / pressed states
+  Progress background
+
+Dark Primary Color
+Status bar overlay
+Strong emphasis areas
+Active indicators
+Headers on light backgrounds
+
+Accent Color
+Secondary buttons
+Switches & toggles
+Checkboxes & radio buttons
+Selection cursor
+Links & highlights
+
+Primary Text Color
+Page titles
+Section headers
+Card titles
+Main readable content
+
+Secondary Text Color
+Subtitles
+Descriptions
+Hints & helper text
+Timestamps
+Disabled text
+
+Text / Icons Color
+Icons on AppBar
+Icons on buttons
+Text displayed on primary or accent colors
+Foreground color on colored surfaces
+
+Divider Color
+Divider widgets
+List separators
+Table borders
+Input field underlines
+```
+
+
+# Final thoughts on material color
+- use 
+  - primary , primary light, primary dark
+    - used for almost everything including appbar
+    - lighter colors can be used to suggest hovering
+    - darker to create contrast
+  - secondary, secondary light, secondary dark
+    - used sparingly here and there, it is optional to use secondaryy colors.
+    - eg, floating action buttin, text highlight, links, selected items ,etc
+  - background, surface, error
+    - background ,card colors and error cards respectively
+  - onPrimary, onSecondary, onBackground, onSurface, onError
+    - like text or icons on primary, secondary, background, surface or error
+- some situations that can happen
+  - using "primary" on selected cards "surface"
+  - dark theme can use a inverted color style
+
