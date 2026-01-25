@@ -120,8 +120,8 @@ class _EditCardScreenState extends State<EditCardScreen> {
                           ),
                           items: const [
                             DropdownMenuItem(value: 'number', child: Text('Number')),
-                            DropdownMenuItem(value: 'date', child: Text('Date')),
-                            DropdownMenuItem(value: 'string', child: Text('String')),
+                            // DropdownMenuItem(value: 'date', child: Text('Date')),
+                            // DropdownMenuItem(value: 'string', child: Text('String')),
                           ],
                           onChanged: (value) {
                             if (value != null) {

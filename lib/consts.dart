@@ -1,5 +1,8 @@
 import 'dart:ui';
 
+import 'package:dailycalc/data/models/card_model.dart';
+import 'package:dailycalc/data/models/field_model.dart';
+import 'package:dailycalc/data/models/formula_model.dart';
 import 'package:flutter/material.dart';
 
 class ThemeColors {
@@ -106,3 +109,72 @@ const amberRedTheme = ThemeColors(
   lightPrimary: Color(0xFFFFECB3),
   darkPrimary: Color(0xFFFFA000),
 );
+
+
+
+const cardsConst = [
+  CardModel(
+    name: "Percentage",
+    createdOn: 1704067100,
+    isFavourite: false,
+    fields: [
+      FieldModel(sym: "Amount", type: "number"),
+      FieldModel(sym: "Percent", type: "number"),
+    ],
+    formulas: [
+      FormulaModel(pos: 0, sym: "res", expression: "Amount*(100+Percent)/100")
+    ],
+    output: "res",
+  ),
+  CardModel(
+    name: "Interest",
+    createdOn: 1704067200,
+    isFavourite: false,
+    fields: [
+      FieldModel(sym: "Amount", type: "number"),
+      FieldModel(sym: "From", type: "number"),
+      FieldModel(sym: "To", type: "number"),
+    ],
+    formulas: [
+      FormulaModel(pos: 0, sym: "res", expression: "Amount*(To-From)")
+    ],
+    output: "res",
+  ),
+  
+  CardModel(
+    name: "Amount",
+    createdOn: 1704067300,
+    isFavourite: false,
+    fields: [
+      FieldModel(sym: "Amount", type: "number"),
+    ],
+    formulas: [
+      FormulaModel(pos: 0, sym: "res", expression: "Amount")
+    ],
+    output: "res",
+  ),
+  CardModel(
+    name: "inch - cm",
+    createdOn: 1704067400,
+    isFavourite: false,
+    fields: [
+      FieldModel(sym: "Inch", type: "number"),
+    ],
+    formulas: [
+      FormulaModel(pos: 0, sym: "res", expression: "Inch*2.54")
+    ],
+    output: "res",
+  ),
+  CardModel(
+    name: "cm - inch",
+    createdOn: 1704067500,
+    isFavourite: false,
+    fields: [
+      FieldModel(sym: "Cm", type: "number"),
+    ],
+    formulas: [
+      FormulaModel(pos: 0, sym: "res", expression: "Cm/2.54")
+    ],
+    output: "res",
+  ),
+];

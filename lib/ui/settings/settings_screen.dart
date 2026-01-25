@@ -1,5 +1,6 @@
 
 
+import 'package:dailycalc/consts.dart';
 import 'package:dailycalc/data/models/card_model.dart';
 import 'package:dailycalc/data/models/field_model.dart';
 import 'package:dailycalc/data/models/formula_model.dart';
@@ -13,7 +14,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
+  final void Function(Locale?) onLocaleChange;
+  const SettingsScreen({required this.onLocaleChange,super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -72,6 +74,36 @@ class SettingsScreen extends StatelessWidget {
                     if (selected != null) {
                       bloc.add(ChangeTheme(selected));
                     }
+                  },
+                ),
+
+                ListTile(
+                  title: const Text('Language'),
+                  subtitle: Text(Localizations.localeOf(context).languageCode),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () async {
+                    // final bloc = context.read<SettingsBloc>();
+                    await showDialog<String>(
+                      context: context,
+                      builder: (context) => SimpleDialog(
+                        title: const Text('Select Language'),
+                        children: ["en-English","ne-Nepali"]
+                            .map(
+                              (t) => SimpleDialogOption(
+                                onPressed: (){
+                                  onLocaleChange(Locale(t.split("-")[0]));
+                                  Navigator.pop(context);
+                                },
+                                child: Text(t),
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    );
+
+                    // if (selected != null) {
+                    //   bloc.add(ChangeTheme(selected));
+                    // }
                   },
                 ),
 
@@ -189,13 +221,8 @@ class SettingsScreen extends StatelessWidget {
                   onTap: state.isBusy
                       ? null
                       : () {
-                          const cards = [
-                            CardModel(name: "Interest", createdOn: 1704067200, isFavourite: false, fields: [FieldModel(sym: "Amount", type: "number"), FieldModel(sym: "From", type: "number"), FieldModel(sym: "To", type: "number")], formulas: [FormulaModel(pos: 0, sym: "res", expression: "Amount*(To-From)")], output: "res"),
-                            CardModel(name: "Percentage", createdOn: 1704067100, isFavourite: false, fields: [FieldModel(sym: "Amount", type: "number"), FieldModel(sym: "Percent", type: "number")], formulas: [FormulaModel(pos: 0, sym: "res", expression: "Amount*(100+Percent)/100")], output: "res"),
-                            CardModel(name: "Amount", createdOn: 1704067300, isFavourite: false, fields: [FieldModel(sym: "Amount", type: "number")], formulas: [FormulaModel(pos: 0, sym: "res", expression: "Amount")], output: "res")
-                          ];
-                          for(int i=0 ; i<cards.length ; i++){
-                            context.read<CardBloc>().add(SaveCard(cards[i]));
+                          for(int i=0 ; i<cardsConst.length ; i++){
+                            context.read<CardBloc>().add(SaveCard(cardsConst[i]));
                           }
                         },
                 ),

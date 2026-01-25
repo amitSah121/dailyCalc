@@ -9,6 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:math_expressions/math_expressions.dart';
+import 'package:nepali_date_picker/nepali_date_picker.dart';
+import 'package:nepali_utils/nepali_utils.dart';
 
 class EditIndexScreen extends StatefulWidget {
   final HomeModel home;
@@ -29,23 +31,35 @@ class _EditIndexScreenState extends State<EditIndexScreen> {
 
   double computeAggregate(HomeModel home) {
     if (home.items.isEmpty) return 0.0;
-    switch (home.aggregateFunction) {
-      case "Sum":
+    switch (home.aggregateFunction.toLowerCase()) {
+      case "sum":
         return home.items.fold(0.0, (prev, e) => prev + e.output);
-      case "Average":
+      case "average":
         return home.items.fold(0.0, (prev, e) => prev + e.output) /
             home.items.length;
-      case "Max":
+      case "max":
         return home.items.map((e) => e.output).reduce((a, b) => a > b ? a : b);
-      case "Min":
+      case "min":
         return home.items.map((e) => e.output).reduce((a, b) => a < b ? a : b);
       default:
         return 0.0;
     }
   }
 
-  String formatDate(int timestamp) =>
-      DateFormat('d MMM yyyy').format(DateTime.fromMillisecondsSinceEpoch(timestamp));
+  String formatDate(int timestamp, context){
+    if(Localizations.localeOf(context).languageCode == "ne"){
+
+      final adDate =
+          DateTime.fromMillisecondsSinceEpoch(timestamp, isUtc: false);
+
+      final bsDate = NepaliDateTime.fromDateTime(adDate);
+      return NepaliDateFormat("MMMM d, y").format(bsDate);
+    }else{
+      return DateFormat.yMMMMd(
+              Localizations.localeOf(context).toString(),
+            ).format(DateTime.fromMillisecondsSinceEpoch(timestamp));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,7 +81,7 @@ class _EditIndexScreenState extends State<EditIndexScreen> {
           } else {
             currentHome = widget.home;
           }
-
+ 
           return Scaffold(
             appBar: AppBar(
               title: TextField(
@@ -103,7 +117,7 @@ class _EditIndexScreenState extends State<EditIndexScreen> {
                               Text(item.output.toStringAsFixed(2)),
                             ],
                           ),
-                          subtitle: Text(formatDate(item.date)),
+                          subtitle: Text(formatDate(item.date,context)),
                           onTap: () =>
                               _showAddEditItemDialog(context, currentHome!, item),
                           onLongPress: () {
@@ -213,8 +227,8 @@ class _EditIndexScreenState extends State<EditIndexScreen> {
     final fieldControllers = <String, TextEditingController>{};
     final dateController = TextEditingController(
         text: isEdit
-            ? formatDate(item.date)
-            : formatDate(DateTime.now().millisecondsSinceEpoch));
+            ? formatDate(item.date, context)
+            : formatDate(DateTime.now().millisecondsSinceEpoch, context));
 
     // initialize text controllers for each field
     for (var field in home.type.fields) {
@@ -247,31 +261,7 @@ class _EditIndexScreenState extends State<EditIndexScreen> {
                   controller: dateController,
                   decoration: const InputDecoration(labelText: "Date"),
                   readOnly: true,
-                  onTap: () async {
-                    DateTime parsedDate;
-                    try {
-                      parsedDate = DateFormat('d MMM yyyy').parse(dateController.text);
-                    } catch (_) {
-                      parsedDate = DateTime.now();
-                    }
-
-                    final firstDate = DateTime(2000);
-                    final lastDate = DateTime(2100);
-                    if (parsedDate.isBefore(firstDate)) parsedDate = firstDate;
-                    if (parsedDate.isAfter(lastDate)) parsedDate = lastDate;
-
-                    final picked = await showDatePicker(
-                      context: context,
-                      initialDate: parsedDate,
-                      firstDate: firstDate,
-                      lastDate: lastDate,
-                    );
-
-                    if (picked != null) {
-                      dateController.text =
-                          DateFormat('d MMM yyyy').format(picked);
-                    }
-                  },
+                  onTap: () => Localizations.localeOf(context).languageCode == "en" ? pickDate(controller: dateController) : pickNepaliDate(context: context, initialTimestamp: DateTime.now().millisecondsSinceEpoch, pick: dateController),
                 ),
                 const SizedBox(height: 8),
                 ...home.type.fields.map((field) {
@@ -330,7 +320,7 @@ class _EditIndexScreenState extends State<EditIndexScreen> {
                 final newItem = HomeItemModel(
                   note: noteController.text,
                   createdOn: isEdit ? item.createdOn : DateTime.now().millisecondsSinceEpoch ~/ 1000,
-                  date: DateFormat('d MMM yyyy').parse(dateController.text).millisecondsSinceEpoch,
+                  date: Localizations.localeOf(context).languageCode == "en" ? DateFormat('d MMM yyyy').parse(dateController.text).millisecondsSinceEpoch : nepaliStringToMilliseconds(dateController.text)!,
                   inputs: inputs,
                   output: output,
                 );
@@ -350,5 +340,100 @@ class _EditIndexScreenState extends State<EditIndexScreen> {
         );
       }),
     );
+  }
+
+  Future<void> pickDate({
+    required TextEditingController controller,
+  }) async {
+    DateTime parsedDate;
+    try {
+      parsedDate = DateFormat('d MMM yyyy').parse(controller.text);
+    } catch (_) {
+      parsedDate = DateTime.now();
+    }
+
+    final firstDate = DateTime(2000);
+    final lastDate = DateTime(2100);
+
+    if (parsedDate.isBefore(firstDate)) parsedDate = firstDate;
+    if (parsedDate.isAfter(lastDate)) parsedDate = lastDate;
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: parsedDate,
+      firstDate: firstDate,
+      lastDate: lastDate,
+    );
+
+    if (picked != null) {
+      controller.text = formatDate(picked.millisecondsSinceEpoch, context);
+    }
+  }
+
+  /// Converts a Nepali date string like "फाल्गुन ६, २०८२" into
+  /// AD milliseconds (millisecondsSinceEpoch).
+  /// Returns null if the string is invalid.
+  int? nepaliStringToMilliseconds(String bsText) {
+    // Map Nepali month names to month numbers
+    const nepaliMonthMap = {
+      "baisakh": 1,
+      "jestha": 2,
+      "asar": 3,
+      "shrawan": 4,
+      "bhadra": 5,
+      "ashwin": 6,
+      "kartik": 7,
+      "mangsir": 8,
+      "poush": 9,
+      "magh": 10,
+      "falgun": 11,
+      "chaitra": 12,
+    };
+
+    try {
+      // Split the string: "फाल्गुन 6, 2082"
+      final parts = bsText.trim().split(" ");
+      if (parts.length < 3) return null;
+
+      final monthName = parts[0].trim().toLowerCase();
+      final day = int.parse(parts[1].replaceAll(",", "").trim());
+      final year = int.parse(parts[2].trim());
+
+      final month = nepaliMonthMap[monthName];
+      if (month == null) return null;
+
+      // Create NepaliDateTime
+      final bsDate = NepaliDateTime(year, month, day);
+
+      // Convert to AD DateTime and return milliseconds
+      return bsDate.toDateTime().millisecondsSinceEpoch;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  void pickNepaliDate({
+    required BuildContext context,
+    required int initialTimestamp,
+    required TextEditingController pick,
+  }) async {
+    final NepaliDateTime initialDate =
+        NepaliDateTime.fromDateTime(
+            DateTime.fromMillisecondsSinceEpoch(initialTimestamp),
+        );
+
+    final NepaliDateTime? picked = await showNepaliDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: NepaliDateTime(2000, 1, 1),
+      lastDate: NepaliDateTime(2099, 12, 30),
+      initialDatePickerMode: DatePickerMode.day,
+    );
+
+    if (picked != null) {
+      // Convert BS back to Gregorian timestamp for storage
+      pick.text = formatDate(picked.millisecondsSinceEpoch, context);
+    }
+    // return null;
   }
 }

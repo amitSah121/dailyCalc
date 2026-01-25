@@ -7,7 +7,8 @@ import 'calculator/calculator_screen.dart';
 import 'home/home_screen.dart';
 
 class MainAppScreen extends StatefulWidget {
-  const MainAppScreen({super.key});
+  final void Function(Locale?) onLocaleChange;
+  const MainAppScreen({required this.onLocaleChange, super.key});
 
   @override
   State<MainAppScreen> createState() => _MainAppScreenState();
@@ -16,13 +17,19 @@ class MainAppScreen extends StatefulWidget {
 class _MainAppScreenState extends State<MainAppScreen> {
   int _selectedIndex = 1;
 
-  final List<Widget> _screens = const [
+  final List<Widget> _screens = [
     CalculatorScreen(),
     HomeScreen(),
     SheetScreen(),
     CardScreen(),
-    SettingsScreen(),
   ];
+
+  @override
+  void initState() {
+    _screens.add(
+    SettingsScreen(onLocaleChange: widget.onLocaleChange),);
+    super.initState();
+  }
 
   void _onItemTapped(int index) {
     setState(() {

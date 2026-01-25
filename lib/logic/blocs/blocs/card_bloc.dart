@@ -66,10 +66,10 @@ class CardBloc extends Bloc<CardEvent, CardState> {
       final sorted = List<CardModel>.from(_allCards);
       switch (event.sort) {
         case CardSort.nameAsc:
-          sorted.sort((a, b) => a.name.compareTo(b.name));
+          sorted.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
           break;
         case CardSort.nameDesc:
-          sorted.sort((a, b) => b.name.compareTo(a.name));
+          sorted.sort((a, b) => b.name.toLowerCase().compareTo(a.name.toLowerCase()));
           break;
         case CardSort.dateAsc:
           sorted.sort((a, b) => a.createdOn.compareTo(b.createdOn));

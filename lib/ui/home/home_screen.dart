@@ -1,3 +1,4 @@
+import 'package:dailycalc/consts.dart';
 import 'package:dailycalc/data/models/card_model.dart';
 import 'package:dailycalc/data/models/field_model.dart';
 import 'package:dailycalc/data/models/formula_model.dart';
@@ -13,6 +14,7 @@ import 'package:dailycalc/ui/home/graph_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:nepali_utils/nepali_utils.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -69,7 +71,7 @@ class HomeScreen extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
                         Text(home.type.name),
-                        Text(formatDate(home.createdOn*1000))
+                        Text(formatDate(home.createdOn*1000, context))
                       ],
                     ),
                     trailing: IconButton(
@@ -131,9 +133,20 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  String formatDate(int timestamp) =>
-      DateFormat('d MMM yyyy').format(DateTime.fromMillisecondsSinceEpoch(timestamp));
+  String formatDate(int timestamp, context){
+    if(Localizations.localeOf(context).languageCode == "ne"){
 
+      final adDate =
+          DateTime.fromMillisecondsSinceEpoch(timestamp, isUtc: false);
+
+      final bsDate = NepaliDateTime.fromDateTime(adDate);
+      return NepaliDateFormat("MMMM d, y").format(bsDate);
+    }else{
+      return DateFormat.yMMMMd(
+              Localizations.localeOf(context).toString(),
+            ).format(DateTime.fromMillisecondsSinceEpoch(timestamp));
+    }
+  }
 
   void _showAddHomeDialog(BuildContext context) {
     final nameController = TextEditingController();
@@ -204,7 +217,7 @@ class HomeScreen extends StatelessWidget {
                       type: card,
                       cardId: card.createdOn,
                       items: const [],
-                      aggregateFunction: "sum",
+                      aggregateFunction: "Sum",
                       output: 0.0,
                     );
 
@@ -224,51 +237,10 @@ class HomeScreen extends StatelessWidget {
 
 
 Future<void> seedDefaultCards(BuildContext context) async {
-  const cards = [
-    CardModel(
-      name: "Interest",
-      createdOn: 1704067200,
-      isFavourite: false,
-      fields: [
-        FieldModel(sym: "Amount", type: "number"),
-        FieldModel(sym: "From", type: "number"),
-        FieldModel(sym: "To", type: "number"),
-      ],
-      formulas: [
-        FormulaModel(pos: 0, sym: "res", expression: "Amount*(To-From)")
-      ],
-      output: "res",
-    ),
-    CardModel(
-      name: "Percentage",
-      createdOn: 1704067100,
-      isFavourite: false,
-      fields: [
-        FieldModel(sym: "Amount", type: "number"),
-        FieldModel(sym: "Percent", type: "number"),
-      ],
-      formulas: [
-        FormulaModel(pos: 0, sym: "res", expression: "Amount*(100+Percent)/100")
-      ],
-      output: "res",
-    ),
-    CardModel(
-      name: "Amount",
-      createdOn: 1704067300,
-      isFavourite: false,
-      fields: [
-        FieldModel(sym: "Amount", type: "number"),
-      ],
-      formulas: [
-        FormulaModel(pos: 0, sym: "res", expression: "Amount")
-      ],
-      output: "res",
-    ),
-  ];
 
   final bloc = context.read<CardBloc>();
 
-  for (final card in cards) {
+  for (final card in cardsConst) {
     bloc.add(SaveCard(card));
   }
 }

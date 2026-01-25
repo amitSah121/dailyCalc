@@ -92,6 +92,24 @@ class UpdateSheetItem extends SpreadsheetEvents{
   List<Object?> get props => [home, homeItem, inputs];
 }
 
+class UpdateSheetName extends SpreadsheetEvents{
+  final String name;
+  final SpreadSheetModel sheet;
+  
+  const UpdateSheetName(this.name, this.sheet);
+
+}
+
+
+
+class DuplicateSheet extends SpreadsheetEvents{
+  final SpreadSheetModel sheet;
+  
+  const DuplicateSheet(this.sheet);
+
+}
+
+
 
 class UpdateSheetHomes extends SpreadsheetEvents {
   final SpreadSheetModel sheet;

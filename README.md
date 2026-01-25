@@ -219,21 +219,15 @@ Whether you are tracking daily collections, calculating interest, managing expen
 
 # left
 
-- making filters of range in sheets for easy recording and visualization of data
-- the sorting sheet sorts names on the basis of capital and small aphabate , needs to be uniform
-- formula calculator needs a live preview of results
 - spreadsheet needs
   - numbering
   - a way to change or delete dates
   - a non disappearing first row and column
-- In normal calculator don't print 0.0 if a calculation mistake is done, just hold on to previous result in view result section
-- a way to duplicate the entire sheet, it will be effective with filter date feature
+
 
 - make all the conversion formulas that a calculator gives, and some more formulas
-
-- some bugs needs to be fixed like the aggregate "sum" doesnot seem to work automatically
 - make more useful formulas
-- internationalization
+
 - manual
 
 - last feature is to check for update through github, and ask the user for update.

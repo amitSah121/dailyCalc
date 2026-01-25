@@ -21,6 +21,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   final TextEditingController expressionController = TextEditingController();
   bool is_evaluating = false;
 
+  double lastOutput = 0;
+
   @override
   void initState() {
     super.initState();
@@ -310,6 +312,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                           },
                           onDeletePressed: () {
                             expressionController.text = "";
+                            // lastOutput = 0;
                           },
                           onBackspacePresed: () {
                             if (expressionController.text != "") {
@@ -397,10 +400,13 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
       final exp = parser.parse(text);
       final value = exp.evaluate(EvaluationType.REAL, cm);
+      lastOutput = value;
+      
       result = value.toString();
+
       return result;
     }catch (e){
-      return "0.0";
+      return lastOutput.toString();
     }
   }
 }

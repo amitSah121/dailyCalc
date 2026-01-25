@@ -115,6 +115,31 @@ class SpreadsheetBloc extends Bloc<SpreadsheetEvents, SpreadSheetState>{
       }
     });
 
+    on<UpdateSheetName>((event, emit) async{
+      try{
+        repository.updateCard(event.sheet.copyWith(name: event.name));
+        _allSheets = repository.getAllCards();
+        // 5️⃣ Emit success
+        emit(SheetLoaded(_allSheets));
+      }catch(e){
+        emit(SheetError(e.toString()));
+      }
+
+    });
+
+    on<DuplicateSheet>((event, emit) async{
+      try{
+        final newSheet = event.sheet.copyWith(name: "new "+event.sheet.name,createdOn: DateTime.now().millisecondsSinceEpoch ~/ 1000);
+        await repository.createCard(newSheet);
+        // _allSheets = repository.getAllCards();
+        // 5️⃣ Emit success
+        emit(SheetCreated(newSheet));
+      }catch(e){
+        emit(SheetError(e.toString()));
+      }
+
+    });
+
     on<DeleteSheet>((event, emit) async {
       try {
         await repository.deleteCard(event.sheetId);
@@ -137,10 +162,10 @@ class SpreadsheetBloc extends Bloc<SpreadsheetEvents, SpreadSheetState>{
       final sorted = List<SpreadSheetModel>.from(_allSheets);
       switch (event.sort) {
         case SheetSort.nameAsc:
-          sorted.sort((a, b) => a.name.compareTo(b.name));
+          sorted.sort((a, b) => (a.name.split("__%*%__")[0]).toLowerCase().compareTo((b.name.split("__%*%__")[0]).toLowerCase()));
           break;
         case SheetSort.nameDesc:
-          sorted.sort((a, b) => b.name.compareTo(a.name));
+          sorted.sort((a, b) => (b.name.split("__%*%__")[0]).toLowerCase().compareTo((a.name.split("__%*%__")[0]).toLowerCase()));
           break;
         case SheetSort.dateAsc:
           sorted.sort((a, b) => a.createdOn.compareTo(b.createdOn));

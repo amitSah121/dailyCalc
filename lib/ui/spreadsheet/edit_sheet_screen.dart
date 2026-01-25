@@ -12,6 +12,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:math_expressions/math_expressions.dart';
+import 'package:nepali_date_picker/nepali_date_picker.dart';
+import 'package:nepali_utils/nepali_utils.dart';
 
 enum AggregateType { sum, avg, min, max }
 enum ParameterSelection { field, output }
@@ -30,7 +32,7 @@ class _EditSheetScreenState extends State<EditSheetScreen> {
   late CardModel card;
 
   bool showAggregateColumn = true;
-  bool showAggregateRow = false;
+  bool showAggregateRow = true;
 
   String? activeFieldSym;
   ParameterSelection selectedParam = ParameterSelection.field;
@@ -53,8 +55,20 @@ class _EditSheetScreenState extends State<EditSheetScreen> {
 
   
 
-  String formatDate(int ts) =>
-      DateFormat('dd MMM yyyy').format(DateTime.fromMillisecondsSinceEpoch(ts));
+  String formatDate(int timestamp, context){
+    if(Localizations.localeOf(context).languageCode == "ne"){
+
+      final adDate =
+          DateTime.fromMillisecondsSinceEpoch(timestamp, isUtc: false);
+
+      final bsDate = NepaliDateTime.fromDateTime(adDate);
+      return NepaliDateFormat("MMMM d, y").format(bsDate);
+    }else{
+      return DateFormat.yMMMMd(
+              Localizations.localeOf(context).toString(),
+            ).format(DateTime.fromMillisecondsSinceEpoch(timestamp));
+    }
+  }
 
   double aggregate(List<double> values) {
     if (values.isEmpty) return 0;
@@ -119,16 +133,37 @@ class _EditSheetScreenState extends State<EditSheetScreen> {
               .whereType<HomeModel>()
               .toList();
 
+          final int _from = int.parse(sheet.name.split("__%*%__")[1]);
+          final int _to = int.parse(sheet.name.split("__%*%__")[2]);
+
           final dates = homes
               .expand((h) => h.items)
               .map((i) => i.date)
+              .where((d) => d >= _from && d <= _to)
               .toSet()
               .toList()
             ..sort();
 
+          List<String> nameSplit = sheet.name.split("__%*%__");
+          String justname = nameSplit[0];
+          String afterJustName = '${nameSplit[1]}__%*%__${nameSplit[2]}';
+          final justnameController = TextEditingController(text: justname);
+
           return Scaffold(
             appBar: AppBar(
-              title: Text(sheet.name),
+              title: TextField(
+                controller: justnameController,
+                decoration: InputDecoration(
+                  border: InputBorder.none,
+                  hintText: "Home Name",
+                  hintStyle: TextStyle(color: Theme.of(context).primaryColorDark),
+                ),
+                style: TextStyle(color: Theme.of(context).primaryColorDark),
+                onSubmitted: (value) {
+                  context.read<SpreadsheetBloc>().add(UpdateSheetName(
+                      '${value}__%*%__$afterJustName', sheet));
+                },
+              ),
               actions: [
                 PopupMenuButton<String>(
                   onSelected: (v) => _handleMenu(v, sheet),
@@ -147,6 +182,10 @@ class _EditSheetScreenState extends State<EditSheetScreen> {
                     const PopupMenuItem(
                       value: 'param',
                       child: Text('Select Parameter'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'daterange',
+                      child: Text('Change Date Range'),
                     ),
                     const PopupMenuItem(
                       value: 'agg_type',
@@ -168,13 +207,13 @@ class _EditSheetScreenState extends State<EditSheetScreen> {
             ),
             floatingActionButton: FloatingActionButton.extended(
               label: const Icon(Icons.add),
-              onPressed: _addDateColumn,
+              onPressed: ()=>_addDateColumn(sheet),
             ),
             body: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: SingleChildScrollView(
                 child: Table(
-                  defaultColumnWidth: const FixedColumnWidth(120),
+                  defaultColumnWidth: const FixedColumnWidth(150),
                   border: TableBorder.all(),
                   children: [
                     _buildHeader(dates, aggregateType.toString().replaceAll("AggregateType.", "")),
@@ -208,7 +247,7 @@ class _EditSheetScreenState extends State<EditSheetScreen> {
           ),
         ...dates.map((d) => Padding(
               padding: const EdgeInsets.all(8),
-              child: Text(formatDate(d),
+              child: Text(formatDate(d, context),
                   style: const TextStyle(fontWeight: FontWeight.bold)),
             )),
       ],
@@ -299,7 +338,7 @@ class _EditSheetScreenState extends State<EditSheetScreen> {
               children: allHomes.map((home) {
                 return CheckboxListTile(
                   title: Text(home.name),
-                  subtitle: Text(formatDate(home.createdOn*1000)),
+                  subtitle: Text(formatDate(home.createdOn*1000, context)),
                   value: selected.contains(home.createdOn),
                   onChanged: (v) {
                     setLocal(() {
@@ -342,10 +381,10 @@ class _EditSheetScreenState extends State<EditSheetScreen> {
 
     switch (currentSort) {
       case SheetSort.nameAsc:
-        list.sort((a, b) => a.name.compareTo(b.name));
+        list.sort((a, b) => (a.name.split("__%*%__")[0]).toLowerCase().compareTo((b.name.split("__%*%__")[0]).toLowerCase()));
         break;
       case SheetSort.nameDesc:
-        list.sort((a, b) => b.name.compareTo(a.name));
+        list.sort((a, b) => (b.name.split("__%*%__")[0]).toLowerCase().compareTo((a.name.split("__%*%__")[0]).toLowerCase()));
         break;
       case SheetSort.dateAsc:
         list.sort((a, b) => a.createdOn.compareTo(b.createdOn));
@@ -359,31 +398,44 @@ class _EditSheetScreenState extends State<EditSheetScreen> {
 
 
 
-  Future<void> _addDateColumn() async {
+  Future<void> _addDateColumn(SpreadSheetModel sheet) async {
     final bloc = context.read<SpreadsheetBloc>();
-
     final homeRepo = context.read<HomeRepository>();
     final card = context.read<CardRepository>().getCardById(widget.sheet.cardId)!;
-    
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-    );
 
-    if (picked == null) return;
+    int? pickedTimestamp;
 
-    final date = DateTime(
-      picked.year,
-      picked.month,
-      picked.day,
-    ).millisecondsSinceEpoch;
+    // Choose picker based on locale
+    if (Localizations.localeOf(context).languageCode == "ne") {
+      // Nepali (BS) date picker
+      pickedTimestamp = await pickNepaliDateRaw(
+        context: context,
+        initialTimestamp: DateTime.now().millisecondsSinceEpoch,
+      );
+    } else {
+      // English / Gregorian date picker
+      final picked = await showDatePicker(
+        context: context,
+        initialDate: DateTime.now(),
+        firstDate: DateTime(2000),
+        lastDate: DateTime(2100),
+      );
 
+      if (picked != null) {
+        pickedTimestamp = picked.millisecondsSinceEpoch;
+      }
+    }
 
+    // If user canceled picker
+    if (pickedTimestamp == null) return;
+
+    // This is the AD timestamp (milliseconds since epoch)
+    final date = pickedTimestamp;
+
+    // Check if a date already exists
     bool alreadyExists = false;
 
-    for (final homeId in widget.sheet.homeCardIds) {
+    for (final homeId in sheet.homeCardIds) {
       final home = homeRepo.getHomeById(homeId);
       if (home == null) continue;
 
@@ -401,7 +453,7 @@ class _EditSheetScreenState extends State<EditSheetScreen> {
     }
 
     // Add empty item for each home
-    for (final homeId in widget.sheet.homeCardIds) {
+    for (final homeId in sheet.homeCardIds) {
       final home = homeRepo.getHomeById(homeId);
       if (home == null) continue;
 
@@ -575,6 +627,8 @@ class _EditSheetScreenState extends State<EditSheetScreen> {
       });
     } else if (value == 'param') {
       _selectParameter();
+    }else if (value == 'daterange') {
+      _selectDateRange(sheet);
     } else if (value == 'agg_type') {
       _selectAggregateType();
     } else if (value == 'sort') {
@@ -653,4 +707,206 @@ class _EditSheetScreenState extends State<EditSheetScreen> {
       ),
     );
   }
+
+  Future<void> pickDate({
+    required TextEditingController controller,
+  }) async {
+    DateTime parsedDate;
+    try {
+      parsedDate = DateFormat('d MMM yyyy').parse(controller.text);
+    } catch (_) {
+      parsedDate = DateTime.now();
+    }
+
+    final firstDate = DateTime(2000);
+    final lastDate = DateTime(2100);
+
+    if (parsedDate.isBefore(firstDate)) parsedDate = firstDate;
+    if (parsedDate.isAfter(lastDate)) parsedDate = lastDate;
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: parsedDate,
+      firstDate: firstDate,
+      lastDate: lastDate,
+    );
+
+    if (picked != null) {
+      controller.text = formatDate(picked.millisecondsSinceEpoch, context);
+    }
+  }
+  
+  void _selectDateRange(SpreadSheetModel sheet) {
+    int from = int.parse(sheet.name.split("__%*%__")[1]);
+    int to = int.parse(sheet.name.split("__%*%__")[2]);
+
+    final fromDateController = TextEditingController(
+      text: formatDate(from, context),
+    );
+
+    final toDateController = TextEditingController(
+      text: formatDate(to, context),
+    );
+
+    
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Select Date Range'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: fromDateController,
+                readOnly: true,
+                decoration: const InputDecoration(
+                  labelText: 'From',
+                  border: OutlineInputBorder(),
+                ),
+                onTap: () => Localizations.localeOf(context).languageCode == "en" ? pickDate(controller: fromDateController) : pickNepaliDate(context: context, initialTimestamp: DateTime.now().millisecondsSinceEpoch, pick: fromDateController),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: toDateController,
+                readOnly: true,
+                decoration: const InputDecoration(
+                  labelText: 'To',
+                  border: OutlineInputBorder(),
+                ),
+                onTap: () => Localizations.localeOf(context).languageCode == "en" ? pickDate(controller: toDateController) : pickNepaliDate(context: context, initialTimestamp: DateTime.now().millisecondsSinceEpoch, pick: toDateController),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                // final fromDate =
+                //     DateFormat('d MMM yyyy').parse(fromDateController.text);
+                // final toDate =
+                //     DateFormat('d MMM yyyy').parse(toDateController.text);
+                
+                final nameSplit = sheet.name.split("__%*%__");
+                final justName = nameSplit[0];
+                final afterJustName = '${Localizations.localeOf(context).languageCode == "en" ? DateFormat('d MMM yyyy').parse(fromDateController.text).millisecondsSinceEpoch : nepaliStringToMilliseconds(fromDateController.text)}__%*%__${Localizations.localeOf(context).languageCode == "en" ? DateFormat('d MMM yyyy').parse(toDateController.text).millisecondsSinceEpoch : nepaliStringToMilliseconds(toDateController.text)}';
+                context.read<SpreadsheetBloc>().add(UpdateSheetName('${justName}__%*%__$afterJustName', sheet));
+
+                Navigator.pop(context);
+              },
+              child: const Text('Apply'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Converts a Nepali date string like "फाल्गुन ६, २०८२" into
+  /// AD milliseconds (millisecondsSinceEpoch).
+  /// Returns null if the string is invalid.
+  int? nepaliStringToMilliseconds(String bsText) {
+    // Map Nepali month names to month numbers
+    const nepaliMonthMap = {
+      "baisakh": 1,
+      "jestha": 2,
+      "asar": 3,
+      "shrawan": 4,
+      "bhadra": 5,
+      "ashwin": 6,
+      "kartik": 7,
+      "mangsir": 8,
+      "poush": 9,
+      "magh": 10,
+      "falgun": 11,
+      "chaitra": 12,
+    };
+
+    try {
+      // Split the string: "फाल्गुन 6, 2082"
+      final parts = bsText.trim().split(" ");
+      if (parts.length < 3) return null;
+
+      final monthName = parts[0].trim().toLowerCase();
+      final day = int.parse(parts[1].replaceAll(",", "").trim());
+      final year = int.parse(parts[2].trim());
+
+      final month = nepaliMonthMap[monthName];
+      if (month == null) return null;
+
+      // Create NepaliDateTime
+      final bsDate = NepaliDateTime(year, month, day);
+
+      // Convert to AD DateTime and return milliseconds
+      return bsDate.toDateTime().millisecondsSinceEpoch;
+    } catch (e) {
+      return null;
+    }
+  }
+
+
+  void pickNepaliDate({
+    required BuildContext context,
+    required int initialTimestamp,
+    required TextEditingController pick,
+  }) async {
+    final NepaliDateTime initialDate =
+        NepaliDateTime.fromDateTime(
+            DateTime.fromMillisecondsSinceEpoch(initialTimestamp),
+        );
+
+    final NepaliDateTime? picked = await showNepaliDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: NepaliDateTime(2000, 1, 1),
+      lastDate: NepaliDateTime(2099, 12, 30),
+      initialDatePickerMode: DatePickerMode.day,
+    );
+
+    if (picked != null) {
+      // Convert BS back to Gregorian timestamp for storage
+      pick.text = formatDate(picked.millisecondsSinceEpoch, context);
+    }
+    // return null;
+  }
+
+  Future<int?> pickNepaliDateRaw({
+    required BuildContext context,
+    int? initialTimestamp,
+  }) async {
+    // Set NepaliUtils language
+    // NepaliUtils().language =
+    //     Localizations.localeOf(context).languageCode == 'ne'
+    //         ? Language.nepali
+    //         : Language.english;
+
+    // Convert initial timestamp to NepaliDateTime
+    final NepaliDateTime initialDate = initialTimestamp != null
+        ? NepaliDateTime.fromDateTime(
+            DateTime.fromMillisecondsSinceEpoch(initialTimestamp),
+          )
+        : NepaliDateTime.now();
+
+    // Show Nepali date picker
+    final NepaliDateTime? picked = await showNepaliDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: NepaliDateTime(2070, 1, 1),
+      lastDate: NepaliDateTime(2090, 12, 30),
+      initialDatePickerMode: DatePickerMode.day,
+    );
+
+    if (picked != null) {
+      // Convert BS → AD and return milliseconds
+      return picked.toDateTime().millisecondsSinceEpoch;
+    }
+
+    return null; // user canceled
+  }
+
+
 }

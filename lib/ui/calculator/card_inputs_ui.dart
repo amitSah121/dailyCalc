@@ -1,5 +1,6 @@
 import 'package:dailycalc/data/models/card_model.dart';
 import 'package:flutter/material.dart';
+import 'package:math_expressions/math_expressions.dart';
 
 class CardInputs extends StatefulWidget {
   final CardModel card;
@@ -19,6 +20,7 @@ class CardInputs extends StatefulWidget {
 
 class _CardInputsState extends State<CardInputs> {
   late final Map<String, TextEditingController> _controllers;
+  double lastOutput = 0;
 
   @override
   void initState() {
@@ -81,17 +83,28 @@ class _CardInputsState extends State<CardInputs> {
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
-      itemCount: widget.card.fields.length + 1,
+      itemCount: widget.card.fields.length + 2,
       itemBuilder: (context, index) {
         if (index == 0) {
           return Text(
             widget.card.name,
             style: const TextStyle(fontSize: 24),
           );
+        }else if (index == 1) {
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Spacer(),
+              Text(
+                _calculateFormula(_controllers),
+                style: const TextStyle(fontSize: 24),
+              ),
+            ],
+          );
         }
-
-        final field = widget.card.fields[index - 1];
-
+    
+        final field = widget.card.fields[index - 2];
+    
         return Padding(
           padding: const EdgeInsets.all(8),
           child: TextField(
@@ -103,10 +116,48 @@ class _CardInputsState extends State<CardInputs> {
             keyboardType: field.type == 'number'
                 ? TextInputType.number
                 : TextInputType.text,
-            onChanged: (v) => widget.onChanged(field.sym, v),
+            onChanged: (v){
+              widget.onChanged(field.sym, v);
+              setState(() {});
+            },
           ),
         );
       },
     );
+  }
+  
+  String _calculateFormula(Map<String, TextEditingController> controllers) {
+    String result = ""; 
+    try {
+      final parser = Parser();
+      final cm = ContextModel();
+      // Bind input values
+      controllers.forEach((key, val) {
+        final numValue = double.tryParse(val.text) ?? 0.0;
+        cm.bindVariable(Variable(key), Number(numValue));
+      });
+
+      String _lastOutput = '';
+      lastOutput = 0;
+
+      final formulas = [...widget.card.formulas]
+        ..sort((a, b) => a.pos.compareTo(b.pos));
+
+      for (final formula in formulas) {
+        final exp = parser.parse(formula.expression);
+        final value = exp.evaluate(EvaluationType.REAL, cm);
+
+        // Store computed variable for next formulas
+        cm.bindVariable(Variable(formula.sym), Number(value));
+        lastOutput = value;
+        _lastOutput = value.toString();
+      }
+
+      result = _lastOutput;
+      return result.toString();
+    }
+    catch (e){
+      return lastOutput.toString(); 
+    }
   }
 }

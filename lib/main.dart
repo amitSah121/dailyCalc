@@ -10,6 +10,7 @@ import 'package:dailycalc/data/models/card_model.dart';
 import 'package:dailycalc/data/models/home_model.dart';
 import 'package:dailycalc/data/models/spreadsheet_model.dart';
 import 'package:dailycalc/data/models/theme_settings_model.dart';
+import 'package:dailycalc/local_storage.dart';
 import 'package:dailycalc/logic/blocs/blocs/calculator_bloc.dart';
 import 'package:dailycalc/logic/blocs/blocs/card_bloc.dart';
 import 'package:dailycalc/logic/blocs/blocs/home_bloc.dart';
@@ -28,6 +29,7 @@ import 'package:hive/hive.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:path_provider/path_provider.dart';
 import 'settings.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,17 +42,38 @@ void main() async {
     ),
   );
 
-  runApp(const MyApp());
+  final savedLocale = await LocaleStorage.load();
+
+  runApp(MyApp(initialLocale: savedLocale,));
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  final Locale? initialLocale;
+  const MyApp({this.initialLocale,super.key});
 
   @override
   State<MyApp> createState() => _MyAppState();
 }
 
 class _MyAppState extends State<MyApp> {
+
+  Locale? _locale;
+
+  @override
+  void initState() {
+    super.initState();
+    _locale = widget.initialLocale;
+  }
+
+  void _changeLocale(Locale? locale) async {
+    setState(() => _locale = locale);
+    if (locale == null) {
+      await LocaleStorage.clear();
+    } else {
+      await LocaleStorage.save(locale);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return MultiRepositoryProvider(
@@ -139,7 +162,16 @@ class _MyAppState extends State<MyApp> {
               theme: themeData,
               darkTheme: ThemeData.dark(),
               themeMode: state.isDarkMode ? ThemeMode.dark : ThemeMode.light,
-              home: const MainAppScreen(),
+              locale: _locale, // 👈 override or null = system
+              supportedLocales: const [
+                Locale('en'),
+                Locale('ne'),
+              ],
+              localizationsDelegates: const [
+                GlobalMaterialLocalizations.delegate,
+                GlobalWidgetsLocalizations.delegate,
+              ],
+              home: MainAppScreen(onLocaleChange: _changeLocale),
             );
           },
         ),
