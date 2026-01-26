@@ -1,7 +1,5 @@
 import 'package:dailycalc/consts.dart';
 import 'package:dailycalc/data/models/card_model.dart';
-import 'package:dailycalc/data/models/field_model.dart';
-import 'package:dailycalc/data/models/formula_model.dart';
 import 'package:dailycalc/data/models/home_model.dart';
 import 'package:dailycalc/logic/blocs/blocs/card_bloc.dart';
 import 'package:dailycalc/logic/blocs/blocs/home_bloc.dart';
@@ -16,8 +14,24 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:nepali_utils/nepali_utils.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  TextEditingController searchCtrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  void _searchHomes(){
+
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,12 +43,22 @@ class HomeScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text("DailyCalc"),
-        // actions: [
-        //   IconButton(
-        //     icon: const Icon(Icons.add),
-        //     onPressed: () => _showAddHomeDialog(context),
-        //   ),
-        // ],
+        actions: [
+          SizedBox(
+            width: 200,
+            child: TextField(
+              controller: searchCtrl,
+              decoration: const InputDecoration(
+                hintText: 'Search',
+                border: InputBorder.none,
+              ),
+              onChanged: (query) {
+                searchCtrl.text = query;
+                _searchHomes();
+              },
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddHomeDialog(context),
@@ -54,6 +78,8 @@ class HomeScreen extends StatelessWidget {
             if (state.homes.isEmpty) {
               return const Center(child: Text("No entries yet"));
             }
+
+            final homes = state.homes;
 
             return ListView.builder(
               itemCount: state.homes.length,
@@ -234,8 +260,6 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-
-
 Future<void> seedDefaultCards(BuildContext context) async {
 
   final bloc = context.read<CardBloc>();
@@ -244,5 +268,4 @@ Future<void> seedDefaultCards(BuildContext context) async {
     bloc.add(SaveCard(card));
   }
 }
-
 }

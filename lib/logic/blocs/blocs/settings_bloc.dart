@@ -79,7 +79,7 @@ class SettingsBloc extends HydratedBloc<SettingsEvent, SettingsState> {
         cards: cards,
         homes: homes,
         history: history,
-        theme: theme!,
+        theme: theme ?? ThemeSettingsModel(font: "", fontSize: 14, theme: "orange-bluegray"),
         sheets: sheets
       );
 

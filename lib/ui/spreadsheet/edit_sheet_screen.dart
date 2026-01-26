@@ -13,10 +13,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:math_expressions/math_expressions.dart';
 import 'package:nepali_date_picker/nepali_date_picker.dart';
-import 'package:nepali_utils/nepali_utils.dart';
 
 enum AggregateType { sum, avg, min, max }
 enum ParameterSelection { field, output }
+
+
+const double kRowHeight = 56;
+
 
 
 
@@ -42,9 +45,39 @@ class _EditSheetScreenState extends State<EditSheetScreen> {
   SheetSort currentSort = SheetSort.nameAsc;
 
 
+  final ScrollController _horizontal1 = ScrollController();
+  final ScrollController _horizontal2 = ScrollController();
+  final ScrollController _vertical1 = ScrollController();
+  final ScrollController _vertical2 = ScrollController();
+
+  
+
+
+
   @override
   void initState() {
     super.initState();
+    _horizontal1.addListener(() {
+      if (_horizontal1.offset != _horizontal2.offset) {
+        _horizontal2.jumpTo(_horizontal1.offset);
+      }
+    });
+    _horizontal2.addListener(() {
+      if (_horizontal1.offset != _horizontal2.offset) {
+        _horizontal1.jumpTo(_horizontal2.offset);
+      }
+    });
+
+    _vertical1.addListener(() {
+      if (_vertical1.offset != _vertical2.offset) {
+        _vertical2.jumpTo(_vertical1.offset);
+      }
+    });
+    _vertical2.addListener(() {
+      if (_vertical1.offset != _vertical2.offset) {
+        _vertical1.jumpTo(_vertical2.offset);
+      }
+    });
     card = context.read<CardRepository>().getCardById(widget.sheet.cardId)!;
     activeFieldSym = card.fields.first.sym;
   }
@@ -111,9 +144,9 @@ class _EditSheetScreenState extends State<EditSheetScreen> {
     return BlocListener<SpreadsheetBloc, SpreadSheetState>(
       listenWhen: (_, s) => s is SheetLoading,
       listener: (_, __) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Saved successfully')),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   const SnackBar(content: Text('Saved successfully')),
+        // );
       },
       child: BlocBuilder<SpreadsheetBloc, SpreadSheetState>(
         builder: (context, state) {
@@ -205,23 +238,131 @@ class _EditSheetScreenState extends State<EditSheetScreen> {
 
               ],
             ),
-            floatingActionButton: FloatingActionButton.extended(
-              label: const Icon(Icons.add),
+            floatingActionButton: FloatingActionButton.small(
+              child: const Icon(Icons.add),
               onPressed: ()=>_addDateColumn(sheet),
             ),
-            body: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SingleChildScrollView(
-                child: Table(
-                  defaultColumnWidth: const FixedColumnWidth(150),
-                  border: TableBorder.all(),
-                  children: [
-                    _buildHeader(dates, aggregateType.toString().replaceAll("AggregateType.", "")),
-                    ..._sortedHomes(homes).map((h) => _buildRow(h, dates)),
-                    if (showAggregateRow) _buildAggregateRow(homes, dates, aggregateType.toString().replaceAll("AggregateType.", "")),
-                  ],
+            body: Column(
+              children: [
+                SizedBox(
+                  height: MediaQuery.of(context).size.height-100,
+                  child: Column(
+                    children: [
+                      // ─────── HEADER ROW (frozen) ───────
+                      Row(
+                        children: [
+                          // Top-left frozen cell
+                          Table(
+                            defaultColumnWidth: const FixedColumnWidth(150),
+                            border: TableBorder.all(),
+                            children: [
+                              TableRow(
+                                children: const [
+                                  SizedBox(
+                                    height: kRowHeight,
+                                    child: Padding(
+                                      padding: EdgeInsets.all(8),
+                                      child: Text(
+                                        'Name',
+                                        style: TextStyle(fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                      
+                          // Scrollable header row
+                          Expanded(
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              controller: _horizontal1,
+                              child: Table(
+                                defaultColumnWidth: const FixedColumnWidth(150),
+                                border: TableBorder.all(),
+                                children: [
+                                  _buildHeaderScrollable(
+                                    dates,
+                                    aggregateType.toString().replaceAll("AggregateType.", ""),sheet
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                  
+                      // ─────── BODY ───────
+                      Expanded(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Frozen first column
+                            SingleChildScrollView(
+                              controller: _vertical1,
+                              child: Table(
+                                defaultColumnWidth: const FixedColumnWidth(150),
+                                border: TableBorder.all(),
+                                children: [..._sortedHomes(homes)
+                                    .asMap()
+                                    .entries
+                                    .map((e) => _buildFirstColumn(e.key, e.value,sheet.homeCardIds.length))
+                                    .toList(),
+                                    
+                                    if (showAggregateColumn)
+                                    TableRow(children:[SizedBox(
+                                      height: kRowHeight,
+                                      child: Padding(padding: const EdgeInsets.all(8), child: Text(aggregateType
+                                                .toString()
+                                                .replaceAll("AggregateType.", ""),
+                                                                style: const TextStyle(fontWeight: FontWeight.bold))),
+                                    )]),
+                                ]
+                              ),
+                            ),
+                        
+                            // Scrollable table body
+                            Expanded(
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                controller: _horizontal2,
+                                child: SingleChildScrollView(
+                                  controller: _vertical2,
+                                  child: Table(
+                                    defaultColumnWidth: const FixedColumnWidth(150),
+                                    border: TableBorder.all(),
+                                    children: [
+                                      ..._sortedHomes(homes)
+                                          .asMap()
+                                          .entries
+                                          .map((e) =>
+                                              _buildRowScrollable(e.key, e.value, dates)),
+                                      if (showAggregateRow)
+                                        _buildAggregateRowScrollable(
+                                          homes,
+                                          dates,
+                                          aggregateType
+                                              .toString()
+                                              .replaceAll("AggregateType.", ""),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+                Container(
+                  decoration: BoxDecoration(color: Theme.of(context).primaryColorDark),
+                  height: 44,
+                  width: MediaQuery.of(context).size.width,
+                )
+              ],
             ),
           );
         },
@@ -233,23 +374,76 @@ class _EditSheetScreenState extends State<EditSheetScreen> {
   // Table
   // --------------------------------------------------
 
-  TableRow _buildHeader(List<int> dates, String aggregateType) {
+  TableRow _buildHeaderScrollable(List<int> dates, String aggregateType, SpreadSheetModel sheet) {
     return TableRow(
       children: [
-        const Padding(
-          padding: EdgeInsets.all(8),
-          child: Text('Name', style: TextStyle(fontWeight: FontWeight.bold)),
-        ),
         if (showAggregateColumn)
-          Padding(
-            padding: EdgeInsets.all(8),
-            child: Text(aggregateType, style: TextStyle(fontWeight: FontWeight.bold)),
+          SizedBox(
+            height: kRowHeight,
+            child: Padding(
+              padding: EdgeInsets.all(8),
+              child: Text(aggregateType, style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
           ),
-        ...dates.map((d) => Padding(
+        ...dates.map((d) => SizedBox(
+            height: kRowHeight,
+          child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: GestureDetector(
+                  onTap: () => _removeDateColumn(sheet, d),
+                  child: Text(formatDate(d, context),
+                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                  )),
+        ),
+        )
+      ],
+    );
+  }
+
+  TableRow _buildFirstColumn(int index, HomeModel home, int length) {
+    return TableRow(
+      children: [
+        SizedBox(
+          height: kRowHeight,
+          child: Padding(
+            padding: EdgeInsets.all(8),
+            child: Text("${index+1}. ${home.name}"),
+          ),
+        )
+      ],
+    );
+  }
+
+  
+
+
+  TableRow _buildRowScrollable(int index,HomeModel home, List<int> dates) {
+    final rowValues = dates
+        .map((d) => double.tryParse(resolveCell(home, d)) ?? 0)
+        .toList();
+
+    return TableRow(
+      children: [
+        if (showAggregateColumn)
+          SizedBox(
+            height: kRowHeight,
+            child: Padding(
               padding: const EdgeInsets.all(8),
-              child: Text(formatDate(d, context),
-                  style: const TextStyle(fontWeight: FontWeight.bold)),
-            )),
+              child: Text(aggregate(rowValues).toStringAsFixed(2)),
+            ),
+          ),
+        ...dates.map(
+          (d) => GestureDetector(
+            onTap: showOutput ? null : () => _editCell(home, d),
+            child: SizedBox(
+              height: kRowHeight,
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Text(resolveCell(home, d)),
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -285,31 +479,6 @@ class _EditSheetScreenState extends State<EditSheetScreen> {
   }
 
 
-  TableRow _buildRow(HomeModel home, List<int> dates) {
-    final rowValues = dates
-        .map((d) => double.tryParse(resolveCell(home, d)) ?? 0)
-        .toList();
-
-    return TableRow(
-      children: [
-        Padding(padding: const EdgeInsets.all(8), child: Text(home.name)),
-        if (showAggregateColumn)
-          Padding(
-            padding: const EdgeInsets.all(8),
-            child: Text(aggregate(rowValues).toStringAsFixed(2)),
-          ),
-        ...dates.map(
-          (d) => GestureDetector(
-            onTap: showOutput ? null : () => _editCell(home, d),
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: Text(resolveCell(home, d)),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 
   
 
@@ -481,30 +650,83 @@ class _EditSheetScreenState extends State<EditSheetScreen> {
     bloc.add(LoadSheets());
   }
 
+  Future<void> _removeDateColumn(SpreadSheetModel sheet, int date) async {
+    final bloc = context.read<SpreadsheetBloc>();
+    final homeRepo = context.read<HomeRepository>();
 
-  TableRow _buildAggregateRow(List<HomeModel> homes, List<int> dates, String aggregateType) {
+    // Ask for confirmation
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Date Column'),
+        content: Text('Are you sure you want to delete this date column?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // Delete the items for the specified date
+    for (final homeId in sheet.homeCardIds) {
+      final home = homeRepo.getHomeById(homeId);
+      if (home == null) continue;
+
+      final updatedItems =
+          home.items.where((item) => item.date != date).toList();
+
+      homeRepo.updateHome(home.copyWith(items: updatedItems));
+    }
+
+    // Force spreadsheet reload
+    bloc.add(LoadSheets());
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Date column deleted')),
+    );
+  }
+
+
+
+  TableRow _buildAggregateRowScrollable(List<HomeModel> homes, List<int> dates, String aggregateType) {
     return TableRow(
       children: [
-        Padding(padding: EdgeInsets.all(8), child: Text(aggregateType)),
+        // Padding(padding: EdgeInsets.all(8), child: Text(aggregateType)),
         if (showAggregateColumn)
-          Padding(
-            padding: const EdgeInsets.all(8),
-            child: Text(
-              aggregate(homes.map((h) {
-                return aggregate(dates
-                    .map((d) =>
-                        double.tryParse(resolveCell(h, d)) ?? 0)
-                    .toList());
-              }).toList()).toStringAsFixed(2),
+          SizedBox(
+            height: kRowHeight,
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Text(
+                aggregate(homes.map((h) {
+                  return aggregate(dates
+                      .map((d) =>
+                          double.tryParse(resolveCell(h, d)) ?? 0)
+                      .toList());
+                }).toList()).toStringAsFixed(2),
+                    style: const TextStyle(fontWeight: FontWeight.bold)
+              ),
             ),
           ),
         ...dates.map((d) {
           final values = homes
               .map((h) => double.tryParse(resolveCell(h, d)) ?? 0)
               .toList();
-          return Padding(
-            padding: const EdgeInsets.all(8),
-            child: Text(aggregate(values).toStringAsFixed(2)),
+          return SizedBox(
+            height: kRowHeight,
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Text(aggregate(values).toStringAsFixed(2),
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+            ),
           );
         }),
       ],

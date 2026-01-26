@@ -127,19 +127,28 @@ const cardsConst = [
     output: "res",
   ),
   CardModel(
-    name: "Interest",
+    name: "Simple Interest",
     createdOn: 1704067200,
     isFavourite: false,
     fields: [
       FieldModel(sym: "Amount", type: "number"),
-      FieldModel(sym: "From", type: "number"),
-      FieldModel(sym: "To", type: "number"),
+      FieldModel(sym: "Percent", type: "number"),
+      FieldModel(sym: "FromYear", type: "number"),
+      FieldModel(sym: "FromMonth", type: "number"),
+      FieldModel(sym: "FromDay", type: "number"),
+      FieldModel(sym: "ToYear", type: "number"),
+      FieldModel(sym: "ToMonth", type: "number"),
+      FieldModel(sym: "ToDay", type: "number"),
     ],
     formulas: [
-      FormulaModel(pos: 0, sym: "res", expression: "Amount*(To-From)")
+
+      FormulaModel(pos: 0, sym: "From", expression: "FromYear*365+FromMonth*30+FromDay"),
+      FormulaModel(pos: 1, sym: "To", expression: "ToYear*365+ToMonth*30+ToDay"),
+      FormulaModel(pos: 2, sym: "res", expression: "Amount+Amount*(Percent/100)*((To - From) / 365)")
     ],
     output: "res",
   ),
+  
   
   CardModel(
     name: "Amount",
@@ -174,6 +183,25 @@ const cardsConst = [
     ],
     formulas: [
       FormulaModel(pos: 0, sym: "res", expression: "Cm/2.54")
+    ],
+    output: "res",
+  ),
+  CardModel(
+    name: "Compound Interest Monthly",
+    createdOn: 1704067600,
+    isFavourite: false,
+    fields: [
+      FieldModel(sym: "Amount", type: "number"),
+      FieldModel(sym: "Percent", type: "number"),
+      FieldModel(sym: "FromYear", type: "number"),
+      FieldModel(sym: "FromMonth", type: "number"),
+      FieldModel(sym: "ToYear", type: "number"),
+      FieldModel(sym: "ToMonth", type: "number"),
+    ],
+    formulas: [
+
+      FormulaModel(pos: 0, sym: "Months", expression: "(ToYear-FromYear)*12+(ToMonth-FromMonth)"),
+      FormulaModel(pos: 1, sym: "res", expression: "Amount*(1+(Percent/100)/12)^Months")
     ],
     output: "res",
   ),

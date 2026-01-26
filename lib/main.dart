@@ -158,6 +158,7 @@ class _MyAppState extends State<MyApp> {
             }
 
             return MaterialApp(
+              debugShowCheckedModeBanner: false,
               title: 'DailyCalc',
               theme: themeData,
               darkTheme: ThemeData.dark(),

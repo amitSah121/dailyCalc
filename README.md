@@ -219,11 +219,7 @@ Whether you are tracking daily collections, calculating interest, managing expen
 
 # left
 
-- spreadsheet needs
-  - numbering
-  - a way to change or delete dates
-  - a non disappearing first row and column
-
+- for thik karing in dad's thingi just add __%*%__1704067300000__%*%__1704087300000 to dad's sheet name
 
 - make all the conversion formulas that a calculator gives, and some more formulas
 - make more useful formulas
