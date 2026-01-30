@@ -1,4 +1,5 @@
 import 'package:dailycalc/data/models/card_model.dart';
+import 'package:dailycalc/helper.dart';
 import 'package:dailycalc/logic/blocs/blocs/calculator_bloc.dart';
 import 'package:dailycalc/logic/blocs/events/calculator_events.dart';
 import 'package:dailycalc/logic/blocs/states/calculator_state.dart';
@@ -393,6 +394,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   String _calculateExpression(String text){
     try{
+      text = rewriteCalculatorPercent(text);
       String result = '';
 
       final parser = Parser();

@@ -23,7 +23,7 @@ class _CalculatorKeypadState extends State<CalculatorKeypad> {
       [CalcButton('7'), CalcButton('8'), CalcButton('9'), CalcButton('√'),  CalcButton('%')],
       [CalcButton('4'), CalcButton('5'), CalcButton('6'), CalcButton('X'), CalcButton('÷')],
       [CalcButton('1'), CalcButton('2'), CalcButton('3'), CalcButton('+'),CalcButton('-')],
-      [CalcButton('mod'), CalcButton('0'), CalcButton('.'), CalcButton('^')],
+      [CalcButton(''), CalcButton('0'), CalcButton('.'), CalcButton('^')],
     ];
   }
 
@@ -70,11 +70,13 @@ class _CalculatorKeypadState extends State<CalculatorKeypad> {
             }else if(btn.label == "e"){
               widget.onKeyPressed("2.71828");
               return;
-            }else if(btn.label == "mod"){
-              widget.onKeyPressed("%");
-              return;
-            }else if(btn.label == "%"){
-              widget.onKeyPressed("/100");
+            }
+            // else if(btn.label == "mod"){
+            //   widget.onKeyPressed("%");
+            //   return;
+            // }
+            else if(btn.label == "1/x"){
+              widget.onKeyPressed("1/");
               return;
             }
             widget.onKeyPressed(btn.label);

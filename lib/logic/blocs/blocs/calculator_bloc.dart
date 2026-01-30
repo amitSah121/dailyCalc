@@ -1,5 +1,6 @@
 import 'package:dailycalc/data/models/calc_history_model.dart';
 import 'package:dailycalc/data/models/input_model.dart';
+import 'package:dailycalc/helper.dart';
 import 'package:dailycalc/logic/blocs/events/calculator_events.dart';
 import 'package:dailycalc/logic/blocs/states/calculator_state.dart';
 import 'package:dailycalc/repository/history_repository.dart';
@@ -80,23 +81,54 @@ class CalculatorBloc extends Bloc<CalculatorEvent, CalculatorState> {
 
         // ---------------- Calculator Mode ----------------
         if (state.isCalculatorMode) {
-          final exp = parser.parse(state.expression);
+          String text = rewriteCalculatorPercent(state.expression);
+          final exp = parser.parse(text);
           final value = exp.evaluate(EvaluationType.REAL, cm);
           result = value.toString();
         }
 
         // ---------------- Card Mode ----------------
         else if (state.activeCard != null) {
+          final options = {};
           // Bind input values
-          state.cardValues.forEach((key, val) {
-            final numValue = double.tryParse(val.toString()) ?? 0.0;
-            cm.bindVariable(Variable(key), Number(numValue));
+          state.cardValues.forEach((key, val) { 
+            for(final i in state.activeCard!.fields){
+              if((i.type == "number" || i.type == "date") && i.sym == key){
+                final numValue = double.tryParse(val.toString()) ?? 0.0;
+                cm.bindVariable(Variable(key), Number(numValue));
+              }else if(i.sym == key){
+                options.addAll({i.sym: val.split(",")});
+              }
+            }
           });
 
           String lastOutput = '';
 
-          final formulas = [...state.activeCard!.formulas]
-            ..sort((a, b) => a.pos.compareTo(b.pos));
+          var formulas = [...state.activeCard!.formulas];
+
+          for(final i in state.activeCard!.fields){
+            if(i.type == "options"){
+              formulas = formulas.where((e) => e.sym != i.sym).toList();
+            }
+          }
+
+          for (final entry in options.entries) {
+            final selectedSym = state.cardValues[entry.key];
+
+            final item = formulas.firstWhere(
+              (f) => f.sym == selectedSym
+            );
+
+            formulas = formulas.map((e) {
+              return e.copyWith(
+                expression:
+                    e.expression.replaceAll(entry.key, item.expression),
+              );
+            }).toList();
+          }
+
+
+          formulas.sort((a, b) => a.pos.compareTo(b.pos));
 
           for (final formula in formulas) {
             final exp = parser.parse(formula.expression);

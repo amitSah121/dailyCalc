@@ -117,11 +117,11 @@ class _EditCardScreenState extends State<EditCardScreen> {
                           decoration: const InputDecoration(
                             border: OutlineInputBorder(),
                             isDense: true,
-                          ),
+                          ), 
                           items: const [
                             DropdownMenuItem(value: 'number', child: Text('Number')),
-                            // DropdownMenuItem(value: 'date', child: Text('Date')),
-                            // DropdownMenuItem(value: 'string', child: Text('String')),
+                            DropdownMenuItem(value: 'date', child: Text('Date')), // will be in miliseconds from epoch
+                            DropdownMenuItem(value: 'options', child: Text('Options')),
                           ],
                           onChanged: (value) {
                             if (value != null) {

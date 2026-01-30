@@ -225,8 +225,12 @@ Whether you are tracking daily collections, calculating interest, managing expen
 - make more useful formulas
 
 - manual
+-- five sections: calc, home, sheet, cards, settings 
+-- each section will have (video - text) subsections to explain everything
 
-- last feature is to check for update through github, and ask the user for update.
+
+flutter build apk --release --split-per-abi
+
 
 # Json structure
 1) Home

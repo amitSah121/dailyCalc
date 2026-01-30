@@ -29,10 +29,6 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
   }
 
-  void _searchHomes(){
-
-  }
-
   @override
   Widget build(BuildContext context) {
 
@@ -54,7 +50,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               onChanged: (query) {
                 searchCtrl.text = query;
-                _searchHomes();
+                setState(() {
+                  
+                });
               },
             ),
           ),
@@ -79,12 +77,16 @@ class _HomeScreenState extends State<HomeScreen> {
               return const Center(child: Text("No entries yet"));
             }
 
-            final homes = state.homes;
+            var homes = state.homes;
+
+            homes = homes.where((e){
+              return e.name.contains(searchCtrl.text);
+            }).toList();
 
             return ListView.builder(
-              itemCount: state.homes.length,
+              itemCount: homes.length,
               itemBuilder: (context, index) {
-                final home = state.homes[index];
+                final home = homes[index];
 
                 return Card(
                   margin:

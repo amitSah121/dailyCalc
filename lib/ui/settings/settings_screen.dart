@@ -9,6 +9,7 @@ import 'package:dailycalc/logic/blocs/blocs/settings_bloc.dart';
 import 'package:dailycalc/logic/blocs/events/card_events.dart';
 import 'package:dailycalc/logic/blocs/events/settings_events.dart';
 import 'package:dailycalc/logic/blocs/states/settings_state.dart';
+import 'package:dailycalc/ui/settings/manual_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -224,6 +225,18 @@ class SettingsScreen extends StatelessWidget {
                           for(int i=0 ; i<cardsConst.length ; i++){
                             context.read<CardBloc>().add(SaveCard(cardsConst[i]));
                           }
+                        },
+                ),
+
+                const Divider(),
+                ListTile(
+                  leading: const Icon(Icons.flag_circle),
+                  title: const Text("Manual"),
+                  subtitle: const Text("Explains everything, just read it."),
+                  onTap: state.isBusy
+                      ? null
+                      : () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_)=>ManualPage()));
                         },
                 ),
 
