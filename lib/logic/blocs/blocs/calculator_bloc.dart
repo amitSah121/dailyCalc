@@ -113,7 +113,7 @@ class CalculatorBloc extends Bloc<CalculatorEvent, CalculatorState> {
           }
 
           for (final entry in options.entries) {
-            final selectedSym = state.cardValues[entry.key];
+            final selectedSym = state.cardValues[entry.key.toString().trim()];
 
             final item = formulas.firstWhere(
               (f) => f.sym == selectedSym
@@ -122,7 +122,7 @@ class CalculatorBloc extends Bloc<CalculatorEvent, CalculatorState> {
             formulas = formulas.map((e) {
               return e.copyWith(
                 expression:
-                    e.expression.replaceAll(entry.key, item.expression),
+                    e.expression.replaceAll(entry.key.toString().trim(), item.expression),
               );
             }).toList();
           }

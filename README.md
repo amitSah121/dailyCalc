@@ -221,8 +221,6 @@ Whether you are tracking daily collections, calculating interest, managing expen
 
 - for thik karing in dad's thingi just add __%*%__1704067300000__%*%__1704087300000 to dad's sheet name
 
-- make all the conversion formulas that a calculator gives, and some more formulas
-- make more useful formulas
 
 - manual
 -- five sections: calc, home, sheet, cards, settings 

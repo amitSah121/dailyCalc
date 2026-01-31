@@ -345,10 +345,10 @@ class _SheetScreenState extends State<SheetScreen> {
                       return;
                     }
 
-                    final msfrom = Localizations.localeOf(context).languageCode == "en" ? DateFormat('d MMM yyyy').parse(fromDateController.text).millisecondsSinceEpoch : nepaliStringToMilliseconds(fromDateController.text);
+                    final msfrom = Localizations.localeOf(context).languageCode == "en" ? DateFormat('MMMM d, yyyy').parse(fromDateController.text).millisecondsSinceEpoch : nepaliStringToMilliseconds(fromDateController.text);
 
 
-                    final msto = Localizations.localeOf(context).languageCode == "en" ? DateFormat('d MMM yyyy').parse(toDateController.text).millisecondsSinceEpoch : nepaliStringToMilliseconds(toDateController.text);
+                    final msto = Localizations.localeOf(context).languageCode == "en" ? DateFormat('MMMM d, yyyy').parse(toDateController.text).millisecondsSinceEpoch : nepaliStringToMilliseconds(toDateController.text);
 
                     context.read<SpreadsheetBloc>().add(
                           CreateSheet(
@@ -378,7 +378,7 @@ class _SheetScreenState extends State<SheetScreen> {
   }) async {
     DateTime parsedDate;
     try {
-      parsedDate = DateFormat('d MMM yyyy').parse(controller.text);
+      parsedDate = DateFormat('MMMM d, yyyy').parse(controller.text);
     } catch (_) {
       parsedDate = DateTime.now();
     }

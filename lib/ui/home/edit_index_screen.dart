@@ -218,17 +218,31 @@ class _EditIndexScreenState extends State<EditIndexScreen> {
     );
   }
 
+  int millisecondsSinceEpochDays() {
+    DateTime now = DateTime.now();
+    // Create a DateTime at start of today (00:00:00)
+    DateTime startOfDay = DateTime(now.year, now.month, now.day);
+    // Convert to milliseconds
+    return startOfDay.millisecondsSinceEpoch;
+  }
+
   void _showAddEditItemDialog(
       BuildContext context, HomeModel home, [HomeItemModel? item]) {
     final isEdit = item != null;
 
     final noteController =
         TextEditingController(text: isEdit ? item.note : '');
-    final fieldControllers = <String, TextEditingController>{};
+    final Map<String, TextEditingController> _controllers = {};
+    final Map<String, TextEditingController> _dateControllers = {};
+    final Map<String, TextEditingController> _optionsControllers = {};
+
+    final Map<String,List<String>> options = {};
+
     final dateController = TextEditingController(
         text: isEdit
             ? formatDate(item.date, context)
             : formatDate(DateTime.now().millisecondsSinceEpoch, context));
+    
 
     // initialize text controllers for each field
     for (var field in home.type.fields) {
@@ -240,7 +254,29 @@ class _EditIndexScreenState extends State<EditIndexScreen> {
               .value
               .toString()
           : '';
-      fieldControllers[field.sym] = TextEditingController(text: value);
+      if(field.type == "number"){
+        _controllers.addAll({field.sym : TextEditingController(
+          text: value)});
+      }else if(field.type == "date"){
+        _dateControllers.addAll({field.sym: TextEditingController(
+          text: formatDate(int.tryParse(value) ?? millisecondsSinceEpochDays(),context))});
+      }else if(field.type == "options"){
+        _optionsControllers.addAll({field.sym: TextEditingController(
+          text: value)});
+      }
+      // fieldControllers[field.sym] = TextEditingController(text: value);
+    }
+    
+
+    for(final sym in _optionsControllers.keys){
+      for(final formula in home.type.formulas){
+        if(formula.sym == sym){
+          final val = formula.expression.split(",");
+          options.addAll({formula.sym: val});
+          _optionsControllers[formula.sym]!.text = val[0];
+          break;
+        }
+      }
     }
 
     showDialog(
@@ -265,15 +301,58 @@ class _EditIndexScreenState extends State<EditIndexScreen> {
                 ),
                 const SizedBox(height: 8),
                 ...home.type.fields.map((field) {
+                  final type = field.type;
                   return Padding(
-                    padding: const EdgeInsets.only(bottom: 8.0),
-                    child: TextField(
-                      controller: fieldControllers[field.sym],
-                      decoration: InputDecoration(labelText: field.sym),
-                      keyboardType: field.type == "number"
-                          ? TextInputType.number
-                          : TextInputType.text,
-                    ),
+                    padding: const EdgeInsets.all(8),
+                    child:
+                    type == "number" ?
+                      TextField(
+                        controller: _controllers[field.sym],
+                        decoration: InputDecoration(
+                          labelText: field.sym,
+                          border: const OutlineInputBorder(),
+                        ),
+                        keyboardType: field.type == 'number'
+                            ? TextInputType.number
+                            : TextInputType.text,
+                      )
+                    :(
+                      type == "date"
+                      ?
+                      // const Text("Fello")
+                      TextField(
+                          controller: _dateControllers[field.sym],
+                          decoration: const InputDecoration(labelText: "Date"),
+                          readOnly: true,
+                          onTap: () async{
+                            Localizations.localeOf(context).languageCode == "en" ? await pickDate(controller: _dateControllers[field.sym]!) : await pickNepaliDate(context: context, initialTimestamp: DateTime.now().millisecondsSinceEpoch, pick: _dateControllers[field.sym]!);
+                            setState(() {
+                              
+                            });
+                          }
+                        ) 
+                      :
+                        // const Text("Hello")
+                      DropdownButtonFormField<String>(
+                        initialValue: _optionsControllers[field.sym]!.text,
+                        value: _optionsControllers[field.sym]!.text,
+                        decoration: InputDecoration(
+                          labelText: field.sym,
+                          border: const OutlineInputBorder(),
+                        ),
+                        items: options[field.sym]!
+                            .map(
+                              (v) => DropdownMenuItem(
+                                value: v.trim(),
+                                child: Text(v.trim()),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (String? value) {  
+                          _optionsControllers[field.sym]!.text = value!; 
+                        },
+                      )
+                    ) 
                   );
                 }).toList(),
               ],
@@ -285,42 +364,113 @@ class _EditIndexScreenState extends State<EditIndexScreen> {
                 child: const Text("Cancel")),
             ElevatedButton(
               onPressed: () {
-                final inputs = home.type.fields.map((f) {
-                  final val = fieldControllers[f.sym]!.text;
-                  return InputModel(name: f.sym, value: val);
-                }).toList();
+                final List<InputModel> inputs = [];
+
+                for (final f in home.type.fields) {
+                  if (f.type == "number") {
+                    final val = _controllers[f.sym]!.text;
+                    inputs.add(
+                      InputModel(name: f.sym, value: val),
+                    );
+                  }
+                }
+
+                for (final f in home.type.fields) {
+                  if (f.type == "date") {
+                    final int millis =
+                        Localizations.localeOf(context).languageCode == "en"
+                            ? DateFormat('MMMM d, yyyy')
+                                .parse(_dateControllers[f.sym]!.text)
+                                .millisecondsSinceEpoch
+                            : nepaliStringToMilliseconds(
+                                _dateControllers[f.sym]!.text,
+                              )!;
+
+                    inputs.add(
+                      InputModel(name: f.sym, value: millis.toString()),
+                    );
+                  }
+                }
+
+                for (final f in home.type.fields) {
+                  if (f.type == "options") {
+                    final val = _optionsControllers[f.sym]!.text;
+                    inputs.add(
+                      InputModel(name: f.sym, value: val),
+                    );
+                  }
+                }
 
                 double output = 0.0;
                 try {
                   final parser = Parser();
                   final cm = ContextModel();
+                    final options = {};
+                    // Bind input values
+                    for (final input in inputs) {
+                      final field = home.type.fields.firstWhere((e)=> e.sym == input.name);
 
-                  for (final input in inputs) {
-                    final numValue = double.tryParse(input.value.toString()) ?? 0;
-                    cm.bindVariable(Variable(input.name), Number(numValue));
-                  }
+                      final key = input.name;
+                      final val = input.value;
 
-                  String lastOutput = '';
+                      if (field.type == "number" || field.type == "date") {
+                        final numValue = double.tryParse(val.toString()) ?? 0.0;
+                        cm.bindVariable(
+                          Variable(key),
+                          Number(numValue),
+                        );
+                      } else if (field.type == "options") {
+                        options[key] = val.toString().split(",");
+                      }
+                    }
 
-                  final formulas = List.from(home.type.formulas)
-                    ..sort((a, b) => a.pos.compareTo(b.pos));
 
-                  for (final formula in formulas) {
-                    final exp = parser.parse(formula.expression);
-                    final value = exp.evaluate(EvaluationType.REAL, cm);
-                    cm.bindVariable(Variable(formula.sym), Number(value));
-                    lastOutput = value.toString();
-                  }
+                    String lastOutput = '';
 
-                  output = double.tryParse(lastOutput) ?? 0.0;
-                } catch (_) {
+                    var formulas = [...home.type.formulas];
+
+                    for(final i in home.type.fields){
+                      if(i.type == "options"){
+                        formulas = formulas.where((e) => e.sym != i.sym).toList();
+                      }
+                    }
+
+                    for (final entry in options.entries) {
+                      final selectedSym = _optionsControllers[entry.key.toString().trim()]!.text;
+
+                      final item = formulas.firstWhere(
+                        (f) => f.sym == selectedSym
+                      );
+
+                      formulas = formulas.map((e) {
+                        return e.copyWith(
+                          expression:
+                              e.expression.replaceAll(entry.key.toString().trim(), item.expression),
+                        );
+                      }).toList();
+                    }
+
+
+                    formulas.sort((a, b) => a.pos.compareTo(b.pos));
+
+                    for (final formula in formulas) {
+                      final exp = parser.parse(formula.expression);
+                      final value = exp.evaluate(EvaluationType.REAL, cm);
+
+                      // Store computed variable for next formulas
+                      cm.bindVariable(Variable(formula.sym), Number(value));
+                      lastOutput = value.toString();
+                    }
+
+                    output = double.tryParse(lastOutput) ?? 0.0;
+                } catch (e) {
                   output = 0.0;
                 }
 
                 final newItem = HomeItemModel(
                   note: noteController.text,
                   createdOn: isEdit ? item.createdOn : DateTime.now().millisecondsSinceEpoch ~/ 1000,
-                  date: Localizations.localeOf(context).languageCode == "en" ? DateFormat('d MMM yyyy').parse(dateController.text).millisecondsSinceEpoch : nepaliStringToMilliseconds(dateController.text)!,
+                  date: Localizations.localeOf(context).languageCode == "en" ? DateFormat('MMMM d, yyyy').parse(dateController.text).millisecondsSinceEpoch : nepaliStringToMilliseconds(dateController.text)!,
                   inputs: inputs,
                   output: output,
                 );
@@ -347,7 +497,7 @@ class _EditIndexScreenState extends State<EditIndexScreen> {
   }) async {
     DateTime parsedDate;
     try {
-      parsedDate = DateFormat('d MMM yyyy').parse(controller.text);
+      parsedDate = DateFormat('MMMM d, yyyy').parse(controller.text);
     } catch (_) {
       parsedDate = DateTime.now();
     }
@@ -412,7 +562,7 @@ class _EditIndexScreenState extends State<EditIndexScreen> {
     }
   }
 
-  void pickNepaliDate({
+  Future<void> pickNepaliDate({
     required BuildContext context,
     required int initialTimestamp,
     required TextEditingController pick,

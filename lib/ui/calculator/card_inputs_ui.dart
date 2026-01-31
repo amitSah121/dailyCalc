@@ -204,7 +204,7 @@ class _CardInputsState extends State<CardInputs> {
                 readOnly: true,
                 onTap: () async{
                   Localizations.localeOf(context).languageCode == "en" ? await pickDate(controller: _dateControllers[field.sym]!) : await pickNepaliDate(context: context, initialTimestamp: DateTime.now().millisecondsSinceEpoch, pick: _dateControllers[field.sym]!);
-                  widget.onChanged(field.sym, Localizations.localeOf(context).languageCode == "en" ? DateFormat('d MMM yyyy').parse(_dateControllers[field.sym]!.text).millisecondsSinceEpoch : nepaliStringToMilliseconds(_dateControllers[field.sym]!.text)!);
+                  widget.onChanged(field.sym, Localizations.localeOf(context).languageCode == "en" ? DateFormat('MMMM d, yyyy').parse(_dateControllers[field.sym]!.text).millisecondsSinceEpoch : nepaliStringToMilliseconds(_dateControllers[field.sym]!.text)!);
                   setState(() {
                     
                   });
@@ -222,8 +222,8 @@ class _CardInputsState extends State<CardInputs> {
               items: options[field.sym]!
                   .map(
                     (v) => DropdownMenuItem(
-                      value: v,
-                      child: Text(v),
+                      value: v.trim(),
+                      child: Text(v.trim()),
                     ),
                   )
                   .toList(),
@@ -252,7 +252,7 @@ class _CardInputsState extends State<CardInputs> {
       
 
       dateContrllers.forEach((key, val) {
-        int value = Localizations.localeOf(context).languageCode == "en" ? DateFormat('d MMM yyyy').parse(val.text).millisecondsSinceEpoch : nepaliStringToMilliseconds(val.text)!;
+        int value = Localizations.localeOf(context).languageCode == "en" ? DateFormat('MMMM d, yyyy').parse(val.text).millisecondsSinceEpoch : nepaliStringToMilliseconds(val.text)!;
         final numValue = value.toDouble();
         cm.bindVariable(Variable(key), Number(numValue));
       });
@@ -268,7 +268,7 @@ class _CardInputsState extends State<CardInputs> {
       }
 
       for (final entry in options.entries) {
-        final selectedSym = optionControllers[entry.key]!.text;
+        final selectedSym = optionControllers[entry.key.trim()]!.text;
 
         final item = formulas.firstWhere(
           (f) => f.sym == selectedSym
@@ -277,7 +277,7 @@ class _CardInputsState extends State<CardInputs> {
         formulas = formulas.map((e) {
           return e.copyWith(
             expression:
-                e.expression.replaceAll(entry.key, item.expression),
+                e.expression.replaceAll(entry.key.trim(), item.expression),
           );
         }).toList();
       }
@@ -310,7 +310,7 @@ class _CardInputsState extends State<CardInputs> {
   }) async {
     DateTime parsedDate;
     try {
-      parsedDate = DateFormat('d MMM yyyy').parse(controller.text);
+      parsedDate = DateFormat('MMMM d, yyyy').parse(controller.text);
     } catch (_) {
       parsedDate = DateTime.now();
     }

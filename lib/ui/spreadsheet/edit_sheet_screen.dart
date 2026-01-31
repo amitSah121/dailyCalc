@@ -421,6 +421,7 @@ class _EditSheetScreenState extends State<EditSheetScreen> {
     final rowValues = dates
         .map((d) => double.tryParse(resolveCell(home, d)) ?? 0)
         .toList();
+    final type = activeFieldSym == null ? "output" : home.type.fields.firstWhere((e)=>e.sym == activeFieldSym).type;
 
     return TableRow(
       children: [
@@ -439,7 +440,12 @@ class _EditSheetScreenState extends State<EditSheetScreen> {
               height: kRowHeight,
               child: Padding(
                 padding: const EdgeInsets.all(8),
-                child: Text(resolveCell(home, d)),
+                child:
+                (type == "number" || type == "options" || type == "output")
+                ? 
+                  Text(resolveCell(home, d))
+                :
+                  Text(formatDate(int.tryParse(resolveCell(home, d)) ?? millisecondsSinceEpochDays(), context)),
               ),
             ),
           ),
@@ -737,18 +743,72 @@ class _EditSheetScreenState extends State<EditSheetScreen> {
   // Cell editing
   // --------------------------------------------------
 
+
+  int millisecondsSinceEpochDays() {
+    DateTime now = DateTime.now();
+    // Create a DateTime at start of today (00:00:00)
+    DateTime startOfDay = DateTime(now.year, now.month, now.day);
+    // Convert to milliseconds
+    return startOfDay.millisecondsSinceEpoch;
+  }
+
   void _editCell(HomeModel home, int date) {
     final controller = TextEditingController(text: resolveCell(home, date));
+    int _date = (int.tryParse(resolveCell(home, date)) ?? millisecondsSinceEpochDays());
+    final dateController = TextEditingController(text: formatDate(_date,context));
+    final optionsController = TextEditingController(text: resolveCell(home, date));
+    final type = home.type.fields.firstWhere((e)=> e.sym == activeFieldSym).type;
+    final Map<String,List<String>> options = {};
+
+    for(final formula in home.type.formulas){
+      if(formula.sym == activeFieldSym){
+        final val = formula.expression.split(",");
+        options.addAll({formula.sym: val});
+        optionsController.text = val[0];
+        break;
+      }
+    }
 
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         title: Text('${home.name} • ${activeFieldSym ?? "Output"}'),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(border: OutlineInputBorder()),
-        ),
+        content: type == "number" ?
+          TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(border: OutlineInputBorder()),
+          )
+        : 
+        type == "date"
+        ?
+          TextField(
+            controller: dateController,
+            decoration: const InputDecoration(labelText: "Date"),
+            readOnly: true,
+            onTap: () => Localizations.localeOf(context).languageCode == "en" ? pickDate(controller: dateController) : pickNepaliDate(context: context, initialTimestamp: DateTime.now().millisecondsSinceEpoch, pick: dateController),
+          )
+        :
+          DropdownButtonFormField<String>(
+            initialValue: optionsController.text,
+            value: optionsController.text,
+            decoration: InputDecoration(
+              labelText: activeFieldSym,
+              border: const OutlineInputBorder(),
+            ),
+            items: options[activeFieldSym]!
+                .map(
+                  (v) => DropdownMenuItem(
+                    value: v.trim(),
+                    child: Text(v.trim()),
+                  ),
+                )
+                .toList(),
+            onChanged: (String? value) {  
+              optionsController.text = value!; 
+            },
+          )
+        ,
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -756,7 +816,19 @@ class _EditSheetScreenState extends State<EditSheetScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              _saveCell(home, date, controller.text);
+              if(type == "number"){
+                _saveCell(home, date, controller.text);
+              }else if(type == "date"){
+                _saveCell(home, date, (Localizations.localeOf(context).languageCode == "en"
+                            ? DateFormat('MMMM d, yyyy')
+                                .parse(dateController.text)
+                                .millisecondsSinceEpoch
+                            : nepaliStringToMilliseconds(
+                                dateController.text,
+                              )!).toString());
+              }else if(type == "options"){
+                _saveCell(home, date, optionsController.text);
+              }
               Navigator.pop(context);
             },
             child: const Text('OK'),
@@ -786,35 +858,78 @@ class _EditSheetScreenState extends State<EditSheetScreen> {
       return;
     }
 
+    final inputs = item!.inputs.map((i) {
+      return i.name == activeFieldSym ? i.copyWith(value: value) : i;
+    }).toList();
+
+    
+
 
     String result = '';
 
     try {
       final parser = Parser();
       final cm = ContextModel();
-      // Bind input values
-      card.fields.forEach((f) {
-        final numValue = double.tryParse(f.sym == activeFieldSym ? value : '') ?? 0.0;
-        cm.bindVariable(Variable(f.sym), Number(numValue));
-      });
+        final options = {};
+        // Bind input values
+        for (final input in inputs) {
+          final field = home.type.fields.firstWhere((e)=> e.sym == input.name);
 
-      String lastOutput = '';
+          final key = input.name;
+          final val = input.value;
 
-      final formulas = [...card.formulas]
-        ..sort((a, b) => a.pos.compareTo(b.pos));
+          if (field.type == "number" || field.type == "date") {
+            final numValue = double.tryParse(val.toString()) ?? 0.0;
+            cm.bindVariable(
+              Variable(key),
+              Number(numValue),
+            );
+          } else if (field.type == "options") {
+            options[key] = val.toString().split(",");
+          }
+        }
 
-      for (final formula in formulas) {
-        final exp = parser.parse(formula.expression);
-        final value = exp.evaluate(EvaluationType.REAL, cm);
 
-        // Store computed variable for next formulas
-        cm.bindVariable(Variable(formula.sym), Number(value));
-        lastOutput = value.toString();
-      }
+        String lastOutput = '';
 
-      result = lastOutput;
+        var formulas = [...home.type.formulas];
+
+        for(final i in home.type.fields){
+          if(i.type == "options"){
+            formulas = formulas.where((e) => e.sym != i.sym).toList();
+          }
+        }
+
+        for (final entry in options.entries) {
+          final selectedSym = inputs.firstWhere((e)=>e.name == entry.key.toString().trim()).value;
+
+          final item = formulas.firstWhere(
+            (f) => f.sym == selectedSym
+          );
+
+          formulas = formulas.map((e) {
+            return e.copyWith(
+              expression:
+                  e.expression.replaceAll(entry.key.toString().trim(), item.expression),
+            );
+          }).toList();
+        }
+
+
+        formulas.sort((a, b) => a.pos.compareTo(b.pos));
+
+        for (final formula in formulas) {
+          final exp = parser.parse(formula.expression);
+          final value = exp.evaluate(EvaluationType.REAL, cm);
+
+          // Store computed variable for next formulas
+          cm.bindVariable(Variable(formula.sym), Number(value));
+          lastOutput = value.toString();
+        }
+
+        result = lastOutput;
     } catch (e) {
-      result = 'Error';
+      result = "";
     }
 
     // create new item
@@ -935,7 +1050,7 @@ class _EditSheetScreenState extends State<EditSheetScreen> {
   }) async {
     DateTime parsedDate;
     try {
-      parsedDate = DateFormat('d MMM yyyy').parse(controller.text);
+      parsedDate = DateFormat('MMMM d, yyyy').parse(controller.text);
     } catch (_) {
       parsedDate = DateTime.now();
     }
@@ -1015,7 +1130,7 @@ class _EditSheetScreenState extends State<EditSheetScreen> {
                 
                 final nameSplit = sheet.name.split("__%*%__");
                 final justName = nameSplit[0];
-                final afterJustName = '${Localizations.localeOf(context).languageCode == "en" ? DateFormat('d MMM yyyy').parse(fromDateController.text).millisecondsSinceEpoch : nepaliStringToMilliseconds(fromDateController.text)}__%*%__${Localizations.localeOf(context).languageCode == "en" ? DateFormat('d MMM yyyy').parse(toDateController.text).millisecondsSinceEpoch : nepaliStringToMilliseconds(toDateController.text)}';
+                final afterJustName = '${Localizations.localeOf(context).languageCode == "en" ? DateFormat('MMMM d, yyyy').parse(fromDateController.text).millisecondsSinceEpoch : nepaliStringToMilliseconds(fromDateController.text)}__%*%__${Localizations.localeOf(context).languageCode == "en" ? DateFormat('MMMM d, yyyy').parse(toDateController.text).millisecondsSinceEpoch : nepaliStringToMilliseconds(toDateController.text)}';
                 context.read<SpreadsheetBloc>().add(UpdateSheetName('${justName}__%*%__$afterJustName', sheet));
 
                 Navigator.pop(context);

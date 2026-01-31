@@ -56,26 +56,65 @@ class SpreadsheetBloc extends Bloc<SpreadsheetEvents, SpreadSheetState>{
       try {
         final parser = Parser();
         final cm = ContextModel();
+          final options = {};
+          // Bind input values
+          for (final input in inputs) {
+            final field = event.home.type.fields.firstWhere((e)=> e.sym == input.name);
 
-        for (final input in inputs) {
-          final numValue = double.tryParse(input.value.toString()) ?? 0;
-          cm.bindVariable(Variable(input.name), Number(numValue));
-        }
+            final key = input.name;
+            final val = input.value;
 
-        String lastOutput = '';
+            if (field.type == "number" || field.type == "date") {
+              final numValue = double.tryParse(val.toString()) ?? 0.0;
+              cm.bindVariable(
+                Variable(key),
+                Number(numValue),
+              );
+            } else if (field.type == "options") {
+              options[key] = val.toString().split(",");
+            }
+          }
 
-        final formulas = List.from(event.home.type.formulas)
-          ..sort((a, b) => a.pos.compareTo(b.pos));
 
-        for (final formula in formulas) {
-          final exp = parser.parse(formula.expression);
-          final value = exp.evaluate(EvaluationType.REAL, cm);
-          cm.bindVariable(Variable(formula.sym), Number(value));
-          lastOutput = value.toString();
-        }
+          String lastOutput = '';
 
-        output = double.tryParse(lastOutput) ?? 0.0;
-      } catch (_) {
+          var formulas = [...event.home.type.formulas];
+
+          for(final i in event.home.type.fields){
+            if(i.type == "options"){
+              formulas = formulas.where((e) => e.sym != i.sym).toList();
+            }
+          }
+
+          for (final entry in options.entries) {
+            final selectedSym = inputs.firstWhere((e)=>e.name == entry.key.toString().trim()).value;
+
+            final item = formulas.firstWhere(
+              (f) => f.sym == selectedSym
+            );
+
+            formulas = formulas.map((e) {
+              return e.copyWith(
+                expression:
+                    e.expression.replaceAll(entry.key.toString().trim(), item.expression),
+              );
+            }).toList();
+          }
+
+
+          formulas.sort((a, b) => a.pos.compareTo(b.pos));
+
+          for (final formula in formulas) {
+            final exp = parser.parse(formula.expression);
+            final value = exp.evaluate(EvaluationType.REAL, cm);
+
+            // Store computed variable for next formulas
+            cm.bindVariable(Variable(formula.sym), Number(value));
+            lastOutput = value.toString();
+          }
+
+          output = double.tryParse(lastOutput) ?? 0.0;
+      } catch (e) {
         output = 0.0;
       }
       try {

@@ -177,7 +177,7 @@ class _EditCardScreenState extends State<EditCardScreen> {
                           ),
                         ),
                         TextButton(onPressed: (){
-                          final f1 = FieldModel(sym: c1.text, type: "number");
+                          final f1 = FieldModel(sym: c1.text.trim(), type: "number");
                           widget.card.fields.add(f1);
                           Navigator.pop(context);
                           setState(() {
@@ -259,7 +259,7 @@ class _EditCardScreenState extends State<EditCardScreen> {
                             : widget.card.formulas
                                 .map((f) => f.pos)
                                 .reduce((a, b) => a > b ? a : b);
-                          final f1 = FormulaModel(pos: maxPos+1,sym: c1.text, expression: "");
+                          final f1 = FormulaModel(pos: maxPos+1,sym: c1.text.trim(), expression: "");
                           widget.card.formulas.add(f1);
                           formulaControllers.add(TextEditingController());
                           Navigator.pop(context);
